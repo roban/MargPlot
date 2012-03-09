@@ -1,9 +1,8 @@
 """Tools for 2-D plots of multi-variate data with marginal distributions.
 
-The core of this module is plot2Ddist, which plots a two-dimensional
-distribution of points with 1D marginal histograms along each axis and
-optional features like contours and lines indicating ranges and true
-values.
+The core of this module is marginal_plot, which plots a
+two-dimensional distribution of points with 1D marginal histograms
+along each axis.
 
 """
 
@@ -13,190 +12,57 @@ import copy
 
 import pylab
 import numpy as np
-import matplotlib.patches
 from mpl_toolkits.axes_grid1 import make_axes_locatable
-import scipy.stats
 
-try:
-    import pymc
-    _havepymc = True
-except ImportError:
-    _havepymc = False
+def marginal_plot_allpairs(variables, labels=None, axesdict=None, **kwargs):
+    """Run marginal_plot on all pairs in the set `variables`.
 
-def frac_inside_poly(x, y, polyxy):
-    """The fraction of points (x, y) inside polygon polyxy.
-    
-    x -- array of x coordinates
-    y -- array of y coordinates
-    polyxy -- list of x,y coordinates of polygon vertices.
 
-    """
-    xy = np.vstack([x,y]).transpose()
-    return float(sum(matplotlib.nxutils.points_inside_poly(xy, polyxy)))/len(x)
+    Example
+    -------
 
-def fracs_inside_contours(x, y, contours):
-    """The fraction of points (x, y) inside each contour level.
+    >>> import pylab
+    >>> c1 = [[1.,0.9,-0.9],[0.9,2.0,-0.2],[-0.9,-0.2, 3.0]]
+    >>> data1 = np.random.multivariate_normal([1.0, 2.0, 3.0], c1, 300)
+    >>> from margplot import marginal_plot_allpairs
+    >>> axesdict = marginal_plot_allpairs(data1.T, 
+                                          labels=['x', 'y','z'],
+                                          color='r')
+    >>> c2 = [[1.,-0.9,0.9],[-0.9,2.0,0.2],[0.9,0.2, 3.0]]
+    >>> data2 = np.random.multivariate_normal([1.0, 1.0, 1.0], c2, 300)
+    >>> axesdict = marginal_plot_allpairs(data2.T, 
+                                          axesdict=axesdict,
+                                          labels=['x', 'y','z'],
+                                          color='b')
 
-    x -- array of x coordinates
-    y -- array of y coordinates
-    contours -- a matplotlib.contour.QuadContourSet
-    """
-    fracs = []
-    for (icollection, collection) in enumerate(contours.collections):
-        path = collection.get_paths()
-        if len(path) == 0:
-            print "No paths found for contour."
-            frac = 0
-        else:
-            path = path[0]
-            pathxy = path.vertices
-            frac = frac_inside_poly(x,y,pathxy)
-        fracs.append(frac)
-    return fracs
 
-def frac_label_contours(x, y, contours, format='%.3f'):
-    """Label contours according to the fraction of points x,y inside.
-
-    x -- array of x coordinates
-    y -- array of y coordinates
-    contours -- a matplotlib.contour.QuadContourSet
-    format -- string format to use for labels
-
-    """
-    fracs = fracs_inside_contours(x,y,contours)
-    levels = contours.levels
-    labels = {}
-    for (level, frac) in zip(levels, fracs):
-        labels[level] = format % frac
-    contours.clabel(fmt=labels)
-
-def contour_enclosing(x, y, fractions, xgrid, ygrid, zvals, 
-                      axes, nstart = 200, 
-                      *args, **kwargs):
-    """Plot contours encompassing specified fractions of points (x, y).
-
-    x -- array of x coordinates
-    y -- array of y coordinates
-    fractions -- list of fractions to enclose within each contour
-    xgrid -- x coordinates of field defining contours
-    ygrid -- y coordinates of field defining contours
-    zvals -- values of field defining contours at (xgrid, ygrid)
-    axes -- axes on which to display contours
-    nstart -- number of contour levels to start with
-    args, kwargs -- additional arguments are passed to contours.__init__()
-
-    """
-
-    # Generate a large set of contours initially.
-    contours = axes.contour(xgrid, ygrid, zvals, nstart, 
-                            extend='both')
-    # Set up fracs and levs for interpolation.
-    levs = contours.levels
-    fracs = np.array(fracs_inside_contours(x,y,contours))
-    sortinds = np.argsort(fracs)
-    levs = levs[sortinds]
-    fracs = fracs[sortinds]
-    # Find the levels that give the specified fractions.
-    levels = scipy.interp(fractions, fracs, levs)
-
-    # Remove the old contours from the graph.
-    for coll in contours.collections:
-        coll.remove()
-    # Reset the contours
-    contours.__init__(axes, xgrid, ygrid, zvals, levels, *args, **kwargs)
-    return contours
-
-def obj_to_names(variables):
-    """A list of names for the given list of objects.
-
-    Works for objects with a __name__ attribute.
-    """
-    names = []
-    for var in variables:
-        if hasattr(var, '__name__'):
-            names.append(var.__name__)
-        else:
-            names.append('')
-    return names
-
-def names_to_trace(names, container, chain=-1):
-    """A list of traces given variable names and pymc object.
-
-    Accesses the traces using 'container.trace(name, chain=chain)'.
-    """
-    traces = []
-    for name in names:
-        traces.append(container.trace(name, chain=chain))
-    return traces
-
-def vars_to_trace(variables, container=None, chain=-1):
-    """Return a list of traces given variables and a pymc model.
-
-    If container is specified, retrieve traces from
-    container.db.trace(varname).
-
-    See also: obj_to_names, names_to_trace
-    """
-    names = obj_to_names(variables)
-    if container:
-        return names_to_trace(names, container, chain=chain)
-    else:
-        return [var.trace(chain=chain) for var in variables]
-
-def plot2DdistsAllPairs(variables, labels=None, fancylabels=None,
-                        mcmodel=None, axeslists=None, axesdict=None,
-                        return_axesdict=False,
-                        *args, **kwargs):
-    """Run plot2Ddist on all pairs in the set `variables`.
-
-    axesdict takes precendence over axeslist
     """
     pairs = itertools.combinations(variables, 2)
     length = int(math.factorial(len(variables)) 
                  / (2. * math.factorial(len(variables) - 2)))
 
     if labels is None:
-        pairlabels = itertools.cycle([None])
+        labels = ['variables[%i]' % i for i in xrange(len(variables))]
     else:
         assert len(labels) == len(variables)
-        pairlabels = itertools.combinations(labels, 2)
+    pairlabels = itertools.combinations(labels, 2)
 
-    if fancylabels is None:
-        if labels is None:
-            pairfancylabels = itertools.cycle([None])
-        else:
-            pairfancylabels = itertools.combinations(labels, 2)
-    else:
-        assert len(fancylabels) == len(variables)
-        pairfancylabels = itertools.combinations(fancylabels, 2)
-
-    if axeslists is None:
-        axeslists = [None] * length
     if axesdict is None:
         axesdict = dict()
-    for (i, (pair, pairlabel, pairfancylabel, axeslist)) in enumerate(
-        zip(pairs, pairlabels, pairfancylabels, axeslists)):
-        traces = pair
-        if pairlabel is None:
-            pairindex = i
-        else:
-            pairindex = pairlabel
-        if not pairindex in axesdict:
-            axesdict[pairindex] = axeslist
-        results = plot2Ddist(traces, 
-                             labels=pairlabel, fancylabels=pairfancylabel,
-                             axeslist=axesdict[pairindex], mcmodel=mcmodel,
-                             *args, **kwargs)
-        axesdict[pairindex] = results['axeslist']
-        axeslists[i] = results['axeslist']
-    if return_axesdict:
-        return axesdict
-    else:
-        return axeslists
+    for (i, (pair, pairlabel)) in enumerate(zip(pairs, pairlabels)):
+        if not pairlabel in axesdict:
+            axesdict[pairlabel] = None
+        axesdict[pairlabel] = marginal_plot(pair, 
+                                            labels=pairlabel, 
+                                            axeslist=axesdict[pairlabel],
+                                            **kwargs)
+    return axesdict
 
 def marginal_plot_pairs(xvar, yvars, axeslists=None, 
                         xlabel=None, ylabels=None, **kwargs):
-    """Run marginal_plot on xvar paired with all yvars.
+    """Run `marginal_plot` on `xvar` paired with all `yvars`.
+
+    See: `marginal_plot`
 
     Example
     -------
@@ -207,8 +73,20 @@ def marginal_plot_pairs(xvar, yvars, axeslists=None,
     >>> from margplot import marginal_plot_pairs
     >>> axeslists = marginal_plot_pairs(data1[:,0], data1[:,1:].T, 
                                         xlabel='x', 
-                                        ylabels=['y','z'])
+                                        ylabels=['y','z'],
+                                        color='r')
+    >>> c2 = [[1.,-0.9,0.9],[-0.9,2.0,0.2],[0.9,0.2, 3.0]]
+    >>> data2 = np.random.multivariate_normal([1.0, 1.0, 1.0], c2, 300)
+    >>> axeslists = marginal_plot_pairs(data2[:,0], data2[:,1:].T, 
+                                        axeslists=axeslists,
+                                        color='b')
 
+
+    Returns
+    -------
+
+    axeslists : list
+        list of all the axeslist
     """
     if axeslists is None:
         axeslists = [None] * len(yvars)
@@ -227,7 +105,7 @@ def marginal_plot(variables, axeslist=None, histbinslist=None,
     """Plot joint distribution of two variables, with marginal histograms.
     i.e. make a scatter plot with histograms at the top and right edges.
 
-    The resulting graphic includes:
+    The resulting figure includes:
 
     * a scatter plot of the 2D distribution of the two variables
 
@@ -250,9 +128,9 @@ def marginal_plot(variables, axeslist=None, histbinslist=None,
     Returns
     -------
 
-    'axeslist' -- a list of three Matplotlib Axes for: the joint
-    plot, marginal x histogram, and marginal y histogram,
-    respectively.
+    axeslist : list
+        list of three `matplotlib.axes.Axes` objects for: the joint
+        plot, marginal x histogram, and marginal y histogram.
     
     Parameters
     ----------
@@ -276,20 +154,19 @@ def marginal_plot(variables, axeslist=None, histbinslist=None,
         string for the figure label (not displayed, just a property of
         the figure object that might be used later)
     
-    xscale : either 'linear' or 'log', optional
-        set the scale of the x axis (see pylab.xscale)
-
-    yscale : either 'linear' or 'log', optional
-        set the scale of the y axis (see pylab.xscale)
+    xscale, yscale : {'linear',  'log'}
+        set the scale of the x or y axis (see `pylab.xscale`)
 
     scaleview : bool
         whether to set the axes limits according to the plotted data
 
     scatterstyle, histstyle : dict
-        additional keyword arguments for the plot, or hist commands
+        additional keyword arguments for the plot or hist commands
+        (see `pylab.plot`, `pylab.hist`)
         
     styleArgs : (any additional keyword arguments)
         leftover arguments are passed to both the plot and hist commands
+        (see `pylab.plot`, `pylab.hist`)
     """
     
     variables = np.array(variables)
@@ -337,7 +214,7 @@ def marginal_plot(variables, axeslist=None, histbinslist=None,
     ### Plot the variables. ###
     if not(x is None or y is None):
         # Plot 2D scatter of variables.
-        style = {'marker':'o', 'color':'r', 'alpha':0.1}
+        style = {'marker':'o', 'color':'r', 'alpha':0.3}
         style.update(styleArgs)
         style.update(scatterstyle)
         ax1.scatter(x, y, picker=5, **style)
@@ -404,7 +281,3 @@ def marginal_plot(variables, axeslist=None, histbinslist=None,
         ax1.set_ylabel(labels[1])
         
     return axeslist
-
-
-
-
