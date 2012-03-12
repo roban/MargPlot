@@ -26,14 +26,14 @@ def marginal_plot_allpairs(variables, labels=None, axesdict=None, **kwargs):
     >>> data1 = np.random.multivariate_normal([1.0, 2.0, 3.0], c1, 300)
     >>> from margplot import marginal_plot_allpairs
     >>> axesdict = marginal_plot_allpairs(data1.T, 
-                                          labels=['x', 'y','z'],
-                                          color='r')
+    ...                                   labels=['x', 'y','z'],
+    ...                                   color='r')
     >>> c2 = [[1.,-0.9,0.9],[-0.9,2.0,0.2],[0.9,0.2, 3.0]]
     >>> data2 = np.random.multivariate_normal([1.0, 1.0, 1.0], c2, 300)
     >>> axesdict = marginal_plot_allpairs(data2.T, 
-                                          axesdict=axesdict,
-                                          labels=['x', 'y','z'],
-                                          color='b')
+    ...                                   axesdict=axesdict,
+    ...                                   labels=['x', 'y','z'],
+    ...                                   color='b')
 
 
     """
@@ -72,14 +72,14 @@ def marginal_plot_pairs(xvar, yvars, axeslists=None,
     >>> data1 = np.random.multivariate_normal([1.0, 2.0, 3.0], c1, 300)
     >>> from margplot import marginal_plot_pairs
     >>> axeslists = marginal_plot_pairs(data1[:,0], data1[:,1:].T, 
-                                        xlabel='x', 
-                                        ylabels=['y','z'],
-                                        color='r')
+    ...                                 xlabel='x', 
+    ...                                 ylabels=['y','z'],
+    ...                                 color='r')
     >>> c2 = [[1.,-0.9,0.9],[-0.9,2.0,0.2],[0.9,0.2, 3.0]]
     >>> data2 = np.random.multivariate_normal([1.0, 1.0, 1.0], c2, 300)
     >>> axeslists = marginal_plot_pairs(data2[:,0], data2[:,1:].T, 
-                                        axeslists=axeslists,
-                                        color='b')
+    ...                                 axeslists=axeslists,
+    ...                                 color='b')
 
 
     Returns
@@ -122,7 +122,7 @@ def marginal_plot(variables, axeslist=None, histbinslist=None,
     >>> data2 = np.random.multivariate_normal([1.0, 1.0], c2, 300)
     >>> from margplot import marginal_plot
     >>> axeslist = marginal_plot(data1.T, color='r', labels=['x', 'y'])
-    >>> marginal_plot(data2.T, axeslist=axeslist, color='b')
+    >>> axeslist = marginal_plot(data2.T, axeslist=axeslist, color='b')
     >>> pylab.draw()
 
     Returns
