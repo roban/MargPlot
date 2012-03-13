@@ -26,4 +26,4 @@ Coming Soon
 * tools for better axis labels
 * convenince routines for plotting MCMC chains from PyMC
 
-.. image:: examples/marginal_plot.png
+.. image:: ./examples/marginal_plot.png
